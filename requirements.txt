@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+requests
+beautifulsoup4
+sentence-transformers
+pandas
+chromadb
+SPARQLWrapper
+numpy
