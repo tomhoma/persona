@@ -4,7 +4,9 @@ import GuessInput from './components/GuessInput';
 import GuessList from './components/GuessList';
 import './App.css';
 
-const API_URL = 'http://localhost:8000';
+// For production, the frontend will be served by Nginx and will proxy API requests.
+// For local development, it connects to localhost.
+const API_URL = import.meta.env.PROD ? '' : 'http://localhost:8000';
 const SECRET_PERSON_QID = 'Q307'; // Galileo Galilei - for development
 
 function App() {

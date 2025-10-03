@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    restart: always
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    networks:
+      - personaguess-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend.Dockerfile
+    restart: always
+    ports:
+      - "80:80" # Maps port 80 on the VPS to port 80 in the container
+    depends_on:
+      - backend
+    networks:
+      - personaguess-net
+
+networks:
+  personaguess-net:
+    driver: bridge
