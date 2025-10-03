@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+requests
+chromadb
+numpy
+sentence-transformers
+SPARQLWrapper
+tqdm
