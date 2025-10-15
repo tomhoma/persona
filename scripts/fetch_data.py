@@ -11,6 +11,7 @@ WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
 WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
 OUTPUT_DIR = "data/raw"
 MANIFEST_PATH = os.path.join(OUTPUT_DIR, "_manifest.json")
+USER_AGENT = "PersonaGuessApp/1.0"
 
 # --- Helper Functions (from previous steps) ---
 
@@ -67,65 +68,61 @@ def get_wikidata_details(qid, sparql):
                 details[prop_code] = []
 
             if not any(d['qid'] == value_qid for d in details[prop_code]):
-                details[prop_code].append({"qid": value_qid, "label": value_label})
+                details[prop_code].append({{"qid": value_qid, "label": value_label}})
         return details
     except Exception as e:
         print(f"  - Warning: Could not fetch Wikidata details for {qid}. Error: {e}")
-        return {}
+        return {{}}
 
 def main():
     """
-    Micro-Task Mode for fetching individual person data.
-    - Finds the first person in the manifest without a corresponding JSON file.
-    - Fetches and saves data for ONLY that person.
-    - Exits.
+    Fetches data for each person in the manifest who hasn't been processed yet.
+    - Reads the manifest file.
+    - For each person, checks if a corresponding JSON file exists.
+    - If not, fetches Wikipedia summary and Wikidata details.
+    - Saves the data to a new JSON file.
     """
     if not os.path.exists(MANIFEST_PATH):
-        print("Error: Manifest file not found. Please create it first.")
+        print("Error: Manifest file not found. Please run create_manifest.py first.")
         return
 
     with open(MANIFEST_PATH, 'r', encoding='utf-8') as f:
         person_list = json.load(f)
 
-    # Find the first person to process
-    person_to_process = None
-    for person in person_list:
-        output_path = os.path.join(OUTPUT_DIR, f"{person['qid']}.json")
-        if not os.path.exists(output_path):
-            person_to_process = person
-            break
-
-    if not person_to_process:
-        print("All persons have been processed. Nothing to do.")
-        return
-
-    qid = person_to_process['qid']
-    print(f"--- Processing Person: {person_to_process['label']} ({qid}) ---")
-
-    user_agent = "PersonaGuessApp/1.0 (https://github.com/your-repo; your-email@example.com)"
+    # Setup network clients
     session = requests.Session()
-    session.headers.update({"User-Agent": user_agent})
-    sparql = SPARQLWrapper(WIKIDATA_SPARQL_URL, agent=user_agent)
+    session.headers.update({{"User-Agent": USER_AGENT}})
+    sparql = SPARQLWrapper(WIKIDATA_SPARQL_URL, agent=USER_AGENT)
 
-    # Fetch data for this one person
-    summary = get_wikipedia_summary(person_to_process['enwiki_title'], session)
-    details = get_wikidata_details(qid, sparql)
+    print(f"Found {len(person_list)} persons in the manifest.")
 
-    person_data = {
-        "qid": qid,
-        "label": person_to_process['label'],
-        "enwiki_title": person_to_process['enwiki_title'],
-        "narrative_summary": summary,
-        "details": details,
-    }
+    for person in tqdm(person_list, desc="Fetching person data"):
+        qid = person['qid']
+        output_path = os.path.join(OUTPUT_DIR, f"{{qid}}.json")
 
-    # Save the file
-    output_path = os.path.join(OUTPUT_DIR, f"{qid}.json")
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(person_data, f, ensure_ascii=False, indent=2)
+        if os.path.exists(output_path):
+            continue
 
-    print(f"Successfully fetched and saved data for {qid}.")
-    print("--------------------------------------------------")
+        # Fetch data for this person
+        summary = get_wikipedia_summary(person['enwiki_title'], session)
+        details = get_wikidata_details(qid, sparql)
+
+        person_data = {
+            "qid": qid,
+            "label": person['label'],
+            "enwiki_title": person['enwiki_title'],
+            "narrative_summary": summary,
+            "details": details,
+        }
+
+        # Save the file
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(person_data, f, ensure_ascii=False, indent=2)
+
+        time.sleep(1) # Be polite to the APIs
+
+    print("Data fetching complete.")
+
 
 if __name__ == "__main__":
     main()
