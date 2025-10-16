@@ -1,12 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import MatchDetails from './MatchDetails';
 
 const formatPercent = (val) => `${(val * 100).toFixed(1)}%`;
 
-export default function TopRelations({ dailyRanking, secretQid, limit = 10 }) {
+export default function TopRelations({ sessionId, secretQid, limit = 10 }) {
+  const [dailyRanking, setDailyRanking] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+
+  useEffect(() => {
+    const fetchRanking = async () => {
+      if (!sessionId) return;
+      
+      try {
+        setIsLoading(true);
+        const response = await axios.post('/get_ranking', { sessionId });
+        setDailyRanking(response.data.dailyRanking);
+      } catch (err) {
+        setError('Could not fetch ranking data');
+        console.error('Error fetching ranking:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRanking();
+  }, [sessionId]);
+
+  if (isLoading) return <div>Loading relations...</div>;
+  if (error) return <div>{error}</div>;
   if (!dailyRanking || !secretQid) return null;
   
   // Get all persons including the secret person, sorted by similarity
-  const allPersons = Array.from(dailyRanking.values())
+  const allPersons = dailyRanking
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
@@ -46,9 +74,30 @@ export default function TopRelations({ dailyRanking, secretQid, limit = 10 }) {
                 <strong>Total: {person.score.toFixed(4)}</strong>
               </div>
             </div>
+            <div className="relation-actions">
+              <button 
+                onClick={() => {
+                  console.log('Details button clicked for:', person.label);
+                  setSelectedPerson(person);
+                }}
+                className="details-btn"
+                title="View detailed match information"
+              >
+                🔍 Details
+              </button>
+            </div>
           </div>
         ))}
       </div>
+      
+      {selectedPerson && (
+        <MatchDetails
+          sessionId={sessionId}
+          personQid={selectedPerson.qid}
+          personLabel={selectedPerson.label}
+          onClose={() => setSelectedPerson(null)}
+        />
+      )}
     </div>
   );
 }

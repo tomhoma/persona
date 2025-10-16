@@ -23,18 +23,22 @@ function App() {
         setIsLoading(true);
         setError(null);
         
-        // First get all persons and a random secret person
-        const [personsRes, secretRes] = await Promise.all([
-          axios.get(`${API_URL}/persons`),
-          axios.get(`${API_URL}/random_secret`)
-        ]);
-        
+        // Get all persons (this is safe to expose)
+        const personsRes = await axios.get(`${API_URL}/persons`);
         setAllPersons(personsRes.data);
-        setSecretPerson(secretRes.data);
         
-        // Then get the daily ranking based on the random secret person
-        const rankingRes = await axios.get(`${API_URL}/daily_ranking?secret_qid=${secretRes.data.qid}`);
-        setDailyRanking(new Map(rankingRes.data.map(p => [p.qid, p])));
+        // Start a new game session (server will generate secret and return session ID)
+        const gameRes = await axios.post(`${API_URL}/start_game`);
+        const { sessionId } = gameRes.data;
+        
+        // Store session ID for future requests
+        localStorage.setItem('gameSessionId', sessionId);
+        
+        // Don't store any ranking data initially to prevent secret exposure
+        setDailyRanking(null);
+        
+        // Don't store secret person data on client side
+        setSecretPerson({ qid: 'hidden', label: 'Unknown' });
         
       } catch (err) {
         setError("Could not connect to server.");
@@ -47,61 +51,111 @@ function App() {
     fetchGameData();
   }, []);
 
-  const handleGuess = (person) => {
-    if (isGameWon || isResigned || !dailyRanking || !person || !secretPerson) return;
+  const handleGuess = async (person) => {
+    if (isGameWon || isResigned || !person) return;
     
-    const result = dailyRanking.get(person.qid);
-    if (!result) return;
-    
-    const newGuesses = [...guesses, result];
-    setGuesses(newGuesses.sort((a, b) => a.rank - b.rank));
-    
-    if (result.qid === secretPerson.qid) {
-      setIsGameWon(true);
-    }
-  };
-
-  const handleResign = () => {
-    if (isGameWon || isResigned || !secretPerson || !dailyRanking) return;
-    
-    setIsResigned(true);
-    
-    // Add the secret person to guesses if not already guessed
-    const secretResult = dailyRanking.get(secretPerson.qid);
-    if (secretResult && !guesses.find(g => g.qid === secretPerson.qid)) {
-      const newGuesses = [...guesses, secretResult];
+    try {
+      const sessionId = localStorage.getItem('gameSessionId');
+      if (!sessionId) {
+        setError("Game session expired. Please refresh.");
+        return;
+      }
+      
+      // Send guess to server for validation
+      const guessRes = await axios.post(`${API_URL}/make_guess`, {
+        sessionId,
+        qid: person.qid
+      });
+      
+      const { isCorrect, result, gameWon } = guessRes.data;
+      
+      const newGuesses = [...guesses, result];
       setGuesses(newGuesses.sort((a, b) => a.rank - b.rank));
+      
+      // Build dailyRanking map from guesses (only show guessed persons)
+      const newDailyRanking = new Map();
+      newGuesses.forEach(guess => {
+        newDailyRanking.set(guess.qid, guess);
+      });
+      setDailyRanking(newDailyRanking);
+      
+      if (gameWon) {
+        setIsGameWon(true);
+      }
+      
+    } catch (err) {
+      setError("Could not process guess.");
+      console.error('Error making guess:', err);
     }
   };
 
-  const startNewGame = () => {
+  const handleResign = async () => {
+    if (isGameWon || isResigned) return;
+    
+    try {
+      const sessionId = localStorage.getItem('gameSessionId');
+      if (!sessionId) {
+        setError("Game session expired. Please refresh.");
+        return;
+      }
+      
+      // Send resign request to server
+      const resignRes = await axios.post(`${API_URL}/resign_game`, {
+        sessionId
+      });
+      
+      const { secretPerson: revealedSecret, result } = resignRes.data;
+      
+      setIsResigned(true);
+      setSecretPerson(revealedSecret);
+      
+      // Add the secret person to guesses
+      const newGuesses = [...guesses];
+      if (!guesses.find(g => g.qid === revealedSecret.qid)) {
+        newGuesses.push(result);
+        setGuesses(newGuesses.sort((a, b) => a.rank - b.rank));
+      }
+      
+      // Build dailyRanking map from all guesses including the secret
+      const newDailyRanking = new Map();
+      newGuesses.forEach(guess => {
+        newDailyRanking.set(guess.qid, guess);
+      });
+      setDailyRanking(newDailyRanking);
+      
+    } catch (err) {
+      setError("Could not resign game.");
+      console.error('Error resigning game:', err);
+    }
+  };
+
+  const startNewGame = async () => {
     setGuesses([]);
     setIsGameWon(false);
     setIsResigned(false);
-    setSecretPerson(null);
+    setSecretPerson({ qid: 'hidden', label: 'Unknown' });
     setDailyRanking(null);
     
-    // Fetch new random secret person and ranking
-    const fetchNewGame = async () => {
-      try {
-        setIsLoading(true);
-        
-        // First get the random secret person
-        const secretRes = await axios.get(`${API_URL}/random_secret`);
-        setSecretPerson(secretRes.data);
-        
-        // Then get the ranking based on the secret person
-        const rankingRes = await axios.get(`${API_URL}/daily_ranking?secret_qid=${secretRes.data.qid}`);
-        setDailyRanking(new Map(rankingRes.data.map(p => [p.qid, p])));
-        
-      } catch (err) {
-        setError("Could not start new game.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchNewGame();
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Start a new game session (server will generate new secret)
+      const gameRes = await axios.post(`${API_URL}/start_game`);
+      const { sessionId } = gameRes.data;
+      
+      // Store new session ID
+      localStorage.setItem('gameSessionId', sessionId);
+      
+      // Don't store any ranking data initially to prevent secret exposure
+      setDailyRanking(null);
+      
+    } catch (err) {
+      setError("Could not start new game.");
+      console.error('Error starting new game:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -121,16 +175,16 @@ function App() {
           <p>{error}</p>
         ) : (
           <>
-            {isGameWon && (
+            {isGameWon && secretPerson && secretPerson.qid !== 'hidden' && (
               <div className="win-message">
                 <h2>🎉 Congratulations!</h2>
-                <p>You found: {secretPerson?.label}</p>
+                <p>You found: {secretPerson.label}</p>
               </div>
             )}
-            {isResigned && !isGameWon && (
+            {isResigned && !isGameWon && secretPerson && secretPerson.qid !== 'hidden' && (
               <div className="resign-message">
                 <h2>Game Over</h2>
-                <p>The answer was: <strong>{secretPerson?.label}</strong></p>
+                <p>The answer was: <strong>{secretPerson.label}</strong></p>
                 <p>Better luck next time!</p>
               </div>
             )}
@@ -147,9 +201,9 @@ function App() {
               )}
             </div>
             <GuessList guesses={guesses} />
-            {(isGameWon || isResigned) && secretPerson && (
+            {(isGameWon || isResigned) && secretPerson && secretPerson.qid !== 'hidden' && (
               <TopRelations 
-                dailyRanking={dailyRanking} 
+                sessionId={localStorage.getItem('gameSessionId')}
                 secretQid={secretPerson.qid} 
               />
             )}
