@@ -41,37 +41,102 @@ def test_connection(sparql):
         print("Please check your internet connection and try again.\n")
         return False
 
-def fetch_persons_for_occupation(occupation_qid, sparql):
+def debug_query(sparql):
+    """Debug function to test if we can find Thai people with Thai Wikipedia."""
+    print("🔍 Running debug query to check data availability...")
+    
+    # Test 1: Any Thai person
+    test1 = f"""
+    SELECT ?item WHERE {{
+      ?item wdt:P31 wd:Q5;
+            wdt:P27 wd:{COUNTRY_QID}.
+    }}
+    LIMIT 5
+    """
+    
+    # Test 2: Thai person with Thai Wikipedia
+    test2 = f"""
+    SELECT ?item ?thwiki WHERE {{
+      ?item wdt:P31 wd:Q5;
+            wdt:P27 wd:{COUNTRY_QID}.
+      ?thwiki schema:about ?item;
+              schema:isPartOf <https://th.wikipedia.org/>.
+    }}
+    LIMIT 5
+    """
+    
+    # Test 3: Thai singer specifically
+    test3 = f"""
+    SELECT ?item WHERE {{
+      ?item wdt:P31 wd:Q5;
+            wdt:P27 wd:{COUNTRY_QID};
+            wdt:P106 wd:Q177220.
+    }}
+    LIMIT 5
+    """
+    
+    try:
+        sparql.setQuery(test1)
+        sparql.setReturnFormat(JSON)
+        results1 = sparql.query().convert()["results"]["bindings"]
+        print(f"  Test 1 - Thai people: Found {len(results1)}")
+        
+        sparql.setQuery(test2)
+        results2 = sparql.query().convert()["results"]["bindings"]
+        print(f"  Test 2 - Thai people with Thai Wikipedia: Found {len(results2)}")
+        
+        sparql.setQuery(test3)
+        results3 = sparql.query().convert()["results"]["bindings"]
+        print(f"  Test 3 - Thai singers: Found {len(results3)}")
+        print()
+        
+        if len(results2) == 0:
+            print("⚠️  Warning: No Thai people found with Thai Wikipedia articles!")
+            print("   This might mean the Thai Wikipedia integration is limited.\n")
+            
+    except Exception as e:
+        print(f"❌ Debug query failed: {e}\n")
+
+def fetch_persons_for_occupation(occupation_qid, sparql, debug=False):
     """Fetches persons from Wikidata for a single occupation from a specific country."""
     
     query = f"""
     SELECT DISTINCT ?item ?itemLabel ?itemDescription ?birthDate ?thwiki_title ?image WHERE {{
       ?item wdt:P31 wd:Q5;                    # Instance of human
             wdt:P27 wd:{COUNTRY_QID};         # Country of citizenship
-            wdt:P106/wdt:P279* wd:{occupation_qid}.  # Occupation
+            wdt:P106 wd:{occupation_qid}.     # Occupation (direct, not subclass)
       
       # Must have Thai Wikipedia article
-      ?thwiki_title schema:about ?item;
-                    schema:isPartOf <https://th.wikipedia.org/>;
-                    schema:name ?thwiki_title.
+      ?thwiki schema:about ?item;
+              schema:isPartOf <https://th.wikipedia.org/>;
+              schema:name ?thwiki_title.
       
       # Optional: birth date and image
       OPTIONAL {{ ?item wdt:P569 ?birthDate. }}
       OPTIONAL {{ ?item wdt:P18 ?image. }}
-      
-      # Prefer people born from 1940 onwards (if birth date exists)
-      FILTER(!BOUND(?birthDate) || ?birthDate >= "1940-01-01T00:00:00Z"^^xsd:dateTime)
       
       SERVICE wikibase:label {{ bd:serviceParam wikibase:language "th,en". }}
     }}
     ORDER BY DESC(?birthDate)
     LIMIT {LIMIT_PER_OCCUPATION}
     """
+    
+    if debug:
+        print(f"\n🐛 DEBUG - Occupation: {occupation_qid}")
+        print(f"Query:\n{query}\n")
+    
     try:
         sparql.setQuery(query)
         sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()["results"]["bindings"]
-        return [
+        raw_results = sparql.query().convert()
+        results = raw_results["results"]["bindings"]
+        
+        if debug:
+            print(f"Raw result count: {len(results)}")
+            if len(results) > 0:
+                print(f"First result sample: {results[0]}")
+        
+        parsed_results = [
             {
                 "qid": r["item"]["value"].split("/")[-1],
                 "label": r["itemLabel"]["value"],
@@ -82,7 +147,19 @@ def fetch_persons_for_occupation(occupation_qid, sparql):
             }
             for r in results
         ]
+        
+        if debug:
+            print(f"Parsed results count: {len(parsed_results)}")
+            if len(parsed_results) > 0:
+                print(f"First parsed result: {parsed_results[0]}\n")
+        
+        return parsed_results
+        
     except Exception as e:
+        if debug:
+            print(f"❌ ERROR: {e}\n")
+            import traceback
+            traceback.print_exc()
         print(f"Warning: Could not fetch data for occupation {occupation_qid}. Error: {e}")
         return []
 
@@ -97,13 +174,23 @@ def main():
         print("Exiting due to connection failure.")
         return
     
+    # Run debug queries to check data availability
+    debug_query(sparql)
+    
+    # Test the fetch function with Q177220 (Singer) specifically
+    print("🔍 Testing fetch_persons_for_occupation with Q177220 (Singer)...")
+    test_results = fetch_persons_for_occupation("Q177220", sparql, debug=True)
+    print(f"Test fetch returned {len(test_results)} results\n")
+    
     all_persons = {}
     print(f"🔍 Fetching persons from country: {COUNTRY_QID}")
     print(f"📊 Processing {len(SEED_OCCUPATIONS)} occupation types")
     print(f"🎯 Limit per occupation: {LIMIT_PER_OCCUPATION}\n")
     
     for i, occupation_qid in enumerate(tqdm(SEED_OCCUPATIONS, desc="Progress"), 1):
-        persons = fetch_persons_for_occupation(occupation_qid, sparql)
+        # Enable debug for first 3 occupations
+        debug_mode = (i <= 3)
+        persons = fetch_persons_for_occupation(occupation_qid, sparql, debug=debug_mode)
         new_persons = 0
         for person in persons:
             if person['qid'] not in all_persons:

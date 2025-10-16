@@ -2,6 +2,7 @@ import sqlite3
 import chromadb
 import numpy as np
 import os
+import random
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict
@@ -29,7 +30,7 @@ def cosine_similarity(vec1, vec2):
     return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
 class Person(BaseModel): qid: str; label: str
-class DailyRanking(Person): rank: int; score: float
+class DailyRanking(Person): rank: int; score: float; sim_narrative: float; sim_factual: float; sim_relational: float
 
 @app.on_event("startup")
 def load_data_into_cache():
@@ -63,6 +64,13 @@ async def get_all_persons():
     if not PERSON_CACHE: raise HTTPException(status_code=503, detail="Data not loaded.")
     return [{"qid": data["qid"], "label": data["label"]} for data in PERSON_CACHE.values()]
 
+@app.get("/random_secret", response_model=Person)
+async def get_random_secret_person():
+    if not PERSON_CACHE: raise HTTPException(status_code=503, detail="Data not loaded.")
+    random_qid = random.choice(list(PERSON_CACHE.keys()))
+    person_data = PERSON_CACHE[random_qid]
+    return {"qid": random_qid, "label": person_data["label"]}
+
 @app.get("/daily_ranking", response_model=List[DailyRanking])
 async def get_daily_ranking(secret_qid: str):
     if secret_qid not in PERSON_CACHE: raise HTTPException(status_code=404, detail="Secret QID not found.")
@@ -73,6 +81,6 @@ async def get_daily_ranking(secret_qid: str):
         sim_f = jaccard_similarity(person_data['factual_qids'], secret_person['factual_qids'])
         sim_r = jaccard_similarity(person_data['relational_qids'], secret_person['relational_qids'])
         final_score = (W_NARRATIVE * sim_n) + (W_FACTUAL * sim_f) + (W_RELATIONAL * sim_r)
-        all_scores.append({"qid": qid, "label": person_data["label"], "score": final_score})
+        all_scores.append({"qid": qid, "label": person_data["label"], "score": final_score, "sim_narrative": sim_n, "sim_factual": sim_f, "sim_relational": sim_r})
     sorted_ranking = sorted(all_scores, key=lambda x: x['score'], reverse=True)
-    return [{"qid": item["qid"], "label": item["label"], "rank": i + 1, "score": item["score"]} for i, item in enumerate(sorted_ranking)]
+    return [{"qid": item["qid"], "label": item["label"], "rank": i + 1, "score": item["score"], "sim_narrative": item["sim_narrative"], "sim_factual": item["sim_factual"], "sim_relational": item["sim_relational"]} for i, item in enumerate(sorted_ranking)]

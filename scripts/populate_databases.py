@@ -13,7 +13,7 @@ SQLITE_PATH = os.path.join(DB_DIR, "persona.db")
 CHROMA_PATH = os.path.join(DB_DIR, "chroma")
 MODEL_NAME = 'all-MiniLM-L6-v2'
 FACTUAL_PROPERTIES = ["P106", "P27", "P166"]
-RELATIONAL_PROPERTIES = ["P737", "P1066", "P800"]
+RELATIONAL_PROPERTIES = ["P737", "P1066", "P800", "P108", "P1411", "P19", "P20", "P21", "P22", "P25", "P40", "P1038", "P551", "P3373", "P69", "P1198", "P140", "P937", "P1344", "P106", "P102", "P39", "P54", "P241"]
 
 # --- Database Setup ---
 def setup_databases():
@@ -27,7 +27,7 @@ def setup_databases():
         CREATE TABLE IF NOT EXISTS persons (
             qid TEXT PRIMARY KEY,
             label TEXT,
-            enwiki_title TEXT
+            thwiki_title TEXT
         )
     """)
     cursor.execute("""
@@ -112,8 +112,8 @@ def main():
 
         # Insert into persons table
         cursor.execute(
-            "INSERT OR IGNORE INTO persons (qid, label, enwiki_title) VALUES (?, ?, ?)",
-            (qid, person_data['label'], person_data['enwiki_title'])
+            "INSERT OR IGNORE INTO persons (qid, label, thwiki_title) VALUES (?, ?, ?)",
+            (qid, person_data['label'], person_data['thwiki_title'])
         )
 
         # Insert into person_properties table

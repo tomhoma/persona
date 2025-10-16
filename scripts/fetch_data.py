@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 # --- Configuration ---
 WIKIDATA_SPARQL_URL = "https://query.wikidata.org/sparql"
-WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
+WIKIPEDIA_API_URL = "https://th.wikipedia.org/w/api.php"  # Thai Wikipedia
 OUTPUT_DIR = "data/raw"
 MANIFEST_PATH = os.path.join(OUTPUT_DIR, "_manifest.json")
 USER_AGENT = "PersonaGuessApp/1.0"
@@ -68,11 +68,11 @@ def get_wikidata_details(qid, sparql):
                 details[prop_code] = []
 
             if not any(d['qid'] == value_qid for d in details[prop_code]):
-                details[prop_code].append({{"qid": value_qid, "label": value_label}})
+                details[prop_code].append({"qid": value_qid, "label": value_label})
         return details
     except Exception as e:
         print(f"  - Warning: Could not fetch Wikidata details for {qid}. Error: {e}")
-        return {{}}
+        return {}
 
 def main():
     """
@@ -91,26 +91,26 @@ def main():
 
     # Setup network clients
     session = requests.Session()
-    session.headers.update({{"User-Agent": USER_AGENT}})
+    session.headers.update({"User-Agent": USER_AGENT})
     sparql = SPARQLWrapper(WIKIDATA_SPARQL_URL, agent=USER_AGENT)
 
     print(f"Found {len(person_list)} persons in the manifest.")
 
     for person in tqdm(person_list, desc="Fetching person data"):
         qid = person['qid']
-        output_path = os.path.join(OUTPUT_DIR, f"{{qid}}.json")
+        output_path = os.path.join(OUTPUT_DIR, f"{qid}.json")
 
         if os.path.exists(output_path):
             continue
 
         # Fetch data for this person
-        summary = get_wikipedia_summary(person['enwiki_title'], session)
+        summary = get_wikipedia_summary(person['thwiki_title'], session)
         details = get_wikidata_details(qid, sparql)
 
         person_data = {
             "qid": qid,
             "label": person['label'],
-            "enwiki_title": person['enwiki_title'],
+            "thwiki_title": person['thwiki_title'],
             "narrative_summary": summary,
             "details": details,
         }
