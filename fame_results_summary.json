@@ -1,0 +1,379 @@
+{
+  "execution_summary": {
+    "script": "create_manifest.py",
+    "execution_date": "2025-10-16",
+    "status": "completed_successfully",
+    "total_persons_collected": 788,
+    "occupations_processed": 50,
+    "quality_filters": {
+      "min_sitelinks": 5,
+      "min_statements": 15,
+      "birth_year_range": "1940-2020"
+    }
+  },
+  "statistics": {
+    "average_sitelinks": 10.8,
+    "average_statements": 28.1,
+    "persons_with_images": 590,
+    "image_percentage": 74.9,
+    "age_distribution": {
+      "under_30_years": {
+        "count": 132,
+        "percentage": 16.8
+      },
+      "30_to_49_years": {
+        "count": 452,
+        "percentage": 57.4
+      },
+      "50_plus_years": {
+        "count": 204,
+        "percentage": 25.9
+      },
+      "average_birth_year": 1982,
+      "average_age": 43,
+      "age_range": {
+        "oldest": 1940,
+        "youngest": 2005
+      }
+    }
+  },
+  "fame_scoring_formula": {
+    "description": "Fame score calculation based on Wikidata metrics",
+    "formula": "(sitelinks × 10) + (statements × 2) + (image_bonus: +50)",
+    "components": {
+      "sitelinks": {
+        "weight": 10,
+        "description": "Number of Wikipedia articles across all languages (international recognition)"
+      },
+      "statements": {
+        "weight": 2,
+        "description": "Number of factual statements/properties in Wikidata (data completeness)"
+      },
+      "image_bonus": {
+        "weight": 50,
+        "description": "Fixed bonus for having a profile image (visual recognition)"
+      }
+    }
+  },
+  "top_30_most_famous": [
+    {
+      "rank": 1,
+      "qid": "Q164373",
+      "label": "ทักษิณ ชินวัตร",
+      "birth_year": 1949,
+      "age": 76,
+      "sitelinks": 79,
+      "fame_score": 1030
+    },
+    {
+      "rank": 2,
+      "qid": "Q57670",
+      "label": "ยิ่งลักษณ์ ชินวัตร",
+      "birth_year": 1967,
+      "age": 58,
+      "sitelinks": 81,
+      "fame_score": 1050
+    },
+    {
+      "rank": 3,
+      "qid": "Q26707663",
+      "label": "ลลิษา มโนบาล",
+      "birth_year": 1997,
+      "age": 28,
+      "sitelinks": 77,
+      "fame_score": 1010
+    },
+    {
+      "rank": 4,
+      "qid": "Q6583188",
+      "label": "พุ่มพวง ดวงจันทร์",
+      "birth_year": 1961,
+      "age": 64,
+      "sitelinks": 82,
+      "fame_score": 1060
+    },
+    {
+      "rank": 5,
+      "qid": "Q383197",
+      "label": "จินตหรา พูนลาภ",
+      "birth_year": 1969,
+      "age": 56,
+      "sitelinks": 75,
+      "fame_score": 990
+    },
+    {
+      "rank": 6,
+      "qid": "Q1884754",
+      "label": "สมเด็จพระกนิษฐาธิราชเจ้า กรมสมเด็จพระเทพรัตนราชสุดาฯ สยามบรมราชกุมารี",
+      "birth_year": 1955,
+      "age": 70,
+      "sitelinks": 39,
+      "fame_score": 510
+    },
+    {
+      "rank": 7,
+      "qid": "Q2108126",
+      "label": "ประยุทธ์ จันทร์โอชา",
+      "birth_year": 1954,
+      "age": 71,
+      "sitelinks": 59,
+      "fame_score": 790
+    },
+    {
+      "rank": 8,
+      "qid": "Q13026319",
+      "label": "แพทองธาร ชินวัตร",
+      "birth_year": 1986,
+      "age": 39,
+      "sitelinks": 61,
+      "fame_score": 810
+    },
+    {
+      "rank": 9,
+      "qid": "Q215076",
+      "label": "วาเนสซา เมย์",
+      "birth_year": 1978,
+      "age": 47,
+      "sitelinks": 55,
+      "fame_score": 730
+    },
+    {
+      "rank": 10,
+      "qid": "Q174267",
+      "label": "อภิสิทธิ์ เวชชาชีวะ",
+      "birth_year": 1964,
+      "age": 61,
+      "sitelinks": 62,
+      "fame_score": 820
+    },
+    {
+      "rank": 11,
+      "qid": "Q298551",
+      "label": "ทัชชกร ยีรัมย์",
+      "birth_year": 1976,
+      "age": 49,
+      "sitelinks": 51,
+      "fame_score": 670
+    },
+    {
+      "rank": 12,
+      "qid": "Q445198",
+      "label": "อภิชาติพงศ์ วีระเศรษฐกุล",
+      "birth_year": 1970,
+      "age": 55,
+      "sitelinks": 34,
+      "fame_score": 450
+    },
+    {
+      "rank": 13,
+      "qid": "Q118213697",
+      "label": "เศรษฐา ทวีสิน",
+      "birth_year": 1962,
+      "age": 63,
+      "sitelinks": 44,
+      "fame_score": 580
+    },
+    {
+      "rank": 14,
+      "qid": "Q298088",
+      "label": "สมชาย วงศ์สวัสดิ์",
+      "birth_year": 1947,
+      "age": 78,
+      "sitelinks": 38,
+      "fame_score": 500
+    },
+    {
+      "rank": 15,
+      "qid": "Q3196760",
+      "label": "ชนาธิป สรงกระสินธ์",
+      "birth_year": 1993,
+      "age": 32,
+      "sitelinks": 44,
+      "fame_score": 580
+    },
+    {
+      "rank": 16,
+      "qid": "Q16139757",
+      "label": "อนุทิน ชาญวีรกูล",
+      "birth_year": 1966,
+      "age": 59,
+      "sitelinks": 36,
+      "fame_score": 470
+    },
+    {
+      "rank": 17,
+      "qid": "Q304901",
+      "label": "ธีรศิลป์ แดงดา",
+      "birth_year": 1988,
+      "age": 37,
+      "sitelinks": 41,
+      "fame_score": 540
+    },
+    {
+      "rank": 18,
+      "qid": "Q1315769",
+      "label": "ทูลกระหม่อมหญิงอุบลรัตนราชกัญญา สิริวัฒนาพรรณวดี",
+      "birth_year": 1951,
+      "age": 74,
+      "sitelinks": 30,
+      "fame_score": 390
+    },
+    {
+      "rank": 19,
+      "qid": "Q13027773",
+      "label": "ไมค์ ภิรมย์พร",
+      "birth_year": 1966,
+      "age": 59,
+      "sitelinks": 43,
+      "fame_score": 560
+    },
+    {
+      "rank": 20,
+      "qid": "Q16141371",
+      "label": "มนต์แคน แก่นคูน",
+      "birth_year": 1973,
+      "age": 52,
+      "sitelinks": 49,
+      "fame_score": 640
+    },
+    {
+      "rank": 21,
+      "qid": "Q1365889",
+      "label": "ธงไชย แมคอินไตย์",
+      "birth_year": 1958,
+      "age": 67,
+      "sitelinks": 38,
+      "fame_score": 500
+    },
+    {
+      "rank": 22,
+      "qid": "Q85998709",
+      "label": "พิธา ลิ้มเจริญรัตน์",
+      "birth_year": 1980,
+      "age": 45,
+      "sitelinks": 35,
+      "fame_score": 460
+    },
+    {
+      "rank": 23,
+      "qid": "Q298079",
+      "label": "สุรยุทธ์ จุลานนท์",
+      "birth_year": 1943,
+      "age": 82,
+      "sitelinks": 36,
+      "fame_score": 470
+    },
+    {
+      "rank": 24,
+      "qid": "Q4274269",
+      "label": "ธีราทร บุญมาทัน",
+      "birth_year": 1990,
+      "age": 35,
+      "sitelinks": 37,
+      "fame_score": 480
+    },
+    {
+      "rank": 25,
+      "qid": "Q144555",
+      "label": "แทมมารีน ธนสุกาญจน์",
+      "birth_year": 1977,
+      "age": 48,
+      "sitelinks": 32,
+      "fame_score": 420
+    },
+    {
+      "rank": 26,
+      "qid": "Q467624",
+      "label": "อรทัย ดาบคำ",
+      "birth_year": 1980,
+      "age": 45,
+      "sitelinks": 31,
+      "fame_score": 410
+    },
+    {
+      "rank": 27,
+      "qid": "Q140253",
+      "label": "ภราดร ศรีชาพันธุ์",
+      "birth_year": 1979,
+      "age": 46,
+      "sitelinks": 32,
+      "fame_score": 420
+    },
+    {
+      "rank": 28,
+      "qid": "Q366494",
+      "label": "บัวขาว บัญชาเมฆ",
+      "birth_year": 1982,
+      "age": 43,
+      "sitelinks": 28,
+      "fame_score": 370
+    },
+    {
+      "rank": 29,
+      "qid": "Q6631231",
+      "label": "วิชัย ศรีวัฒนประภา",
+      "birth_year": 1958,
+      "age": 67,
+      "sitelinks": 34,
+      "fame_score": 450
+    },
+    {
+      "rank": 30,
+      "qid": "Q1089410",
+      "label": "สมเด็จพระเจ้าน้องนางเธอ เจ้าฟ้าจุฬาภรณวลัยลักษณ์ อัครราชกุมารี กรมพระศรีสวางควัฒน วรขัตติยราชนารี",
+      "birth_year": 1957,
+      "age": 68,
+      "sitelinks": 17,
+      "fame_score": 250
+    }
+  ],
+  "occupation_breakdown": {
+    "total_occupations_searched": 50,
+    "successful_occupations": 37,
+    "failed_occupations": 13,
+    "most_productive_occupations": [
+      {
+        "occupation_qid": "Q33999",
+        "occupation_name": "Actor/Actress",
+        "persons_found": 300,
+        "new_persons": 269,
+        "average_sitelinks": 12.1,
+        "average_birth_year": 1984
+      },
+      {
+        "occupation_qid": "Q937857",
+        "occupation_name": "Footballer",
+        "persons_found": 300,
+        "new_persons": 266,
+        "average_sitelinks": 8.6,
+        "average_birth_year": 1987
+      },
+      {
+        "occupation_qid": "Q177220",
+        "occupation_name": "Singer",
+        "persons_found": 155,
+        "new_persons": 62,
+        "average_sitelinks": 13.9,
+        "average_birth_year": 1981
+      }
+    ]
+  },
+  "exclusions": {
+    "description": "The script automatically excluded certain types of people",
+    "excluded_types": [
+      "Monarchs (Q116)",
+      "Heads of State (Q10732476)",
+      "Thai Royalty (Q10855449)",
+      "Position: King of Thailand (Q217903)",
+      "Position: Queen of Thailand (Q3847454)"
+    ]
+  },
+  "files_created": [
+    "data/raw/_manifest.json",
+    "fame_results_summary.json"
+  ],
+  "next_steps": [
+    "Run fetch_data.py to get detailed person data",
+    "Run populate_databases.py to populate the game database"
+  ]
+}
