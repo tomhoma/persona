@@ -239,9 +239,89 @@
   .matches-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .match-details-modal {
     margin: 1rem;
     max-height: 90vh;
+  }
+}
+
+/* Game Mode Selection Styles */
+.mode-selection-screen {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.start-game-container {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #444;
+}
+
+.start-game-btn {
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.2em;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.start-game-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.start-game-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-info {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.mode-badge,
+.pool-size-badge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background-color: #646cff;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.pool-size-badge {
+  background-color: #37b24d;
+}
+
+.error-message {
+  color: #e03131;
+  padding: 1rem;
+  background-color: rgba(224, 49, 49, 0.1);
+  border: 1px solid #e03131;
+  border-radius: 8px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .game-info {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .start-game-btn {
+    font-size: 1em;
+    padding: 0.8rem 1.5rem;
   }
 }
