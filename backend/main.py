@@ -4,21 +4,38 @@ import numpy as np
 import os
 import random
 import uuid
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from contextlib import asynccontextmanager
 
+# Import improved similarity module
+try:
+    from improved_similarity import (
+        calculate_improved_narrative_similarity,
+        get_improved_narrative_explanation,
+        calculate_simple_narrative_similarity
+    )
+    IMPROVED_SIMILARITY_AVAILABLE = True
+except ImportError:
+    IMPROVED_SIMILARITY_AVAILABLE = False
+    print("Warning: improved_similarity module not found, using simple similarity")
+
 DB_DIR = "data"
 SQLITE_PATH = os.path.join(DB_DIR, "persona.db")
 CHROMA_PATH = os.path.join(DB_DIR, "chroma")
+NARRATIVE_EMBEDDINGS_DIR = os.path.join(DB_DIR, "narrative_embeddings")
+
+# Adjusted weights - narrative gets more weight with improved system
 W_NARRATIVE = 0.5
 W_FACTUAL = 0.3
 W_RELATIONAL = 0.2
 
 PERSON_CACHE: Dict[str, Dict] = {}
 GAME_SESSIONS: Dict[str, Dict] = {}
+IMPROVED_EMBEDDINGS_CACHE: Dict[str, Dict] = {}  # Cache for improved embeddings
 
 def jaccard_similarity(set1, set2):
     intersection = len(set1.intersection(set2))
@@ -49,54 +66,99 @@ def get_narrative_explanation(similarity):
     else:
         return "Minimal similarity - narratives are largely unrelated"
 
+def calculate_narrative_similarity(person_qid, secret_qid):
+    """
+    Calculate narrative similarity with improved method if available.
+    Falls back to simple cosine similarity if improved embeddings not available.
+    """
+    if IMPROVED_SIMILARITY_AVAILABLE and person_qid in IMPROVED_EMBEDDINGS_CACHE and secret_qid in IMPROVED_EMBEDDINGS_CACHE:
+        # Use improved multi-aspect similarity
+        result = calculate_improved_narrative_similarity(
+            IMPROVED_EMBEDDINGS_CACHE[person_qid],
+            IMPROVED_EMBEDDINGS_CACHE[secret_qid]
+        )
+        return result['overall_score']
+    else:
+        # Fallback to simple similarity
+        person_vec = PERSON_CACHE[person_qid].get('narrative_vector', [])
+        secret_vec = PERSON_CACHE[secret_qid].get('narrative_vector', [])
+        return cosine_similarity(person_vec, secret_vec)
+
+
 def calculate_ranking_for_secret(secret_qid):
-    """Calculate ranking for a specific secret person"""
+    """Calculate ranking for a specific secret person with improved narrative similarity"""
     if secret_qid not in PERSON_CACHE:
         raise HTTPException(status_code=404, detail="Secret person not found.")
-    
+
     secret_person = PERSON_CACHE[secret_qid]
     all_scores = []
-    
+
     for qid, person_data in PERSON_CACHE.items():
-        sim_n = cosine_similarity(person_data.get('narrative_vector', []), secret_person.get('narrative_vector', []))
+        # Use improved narrative similarity
+        sim_n = calculate_narrative_similarity(qid, secret_qid)
+
+        # Factual and relational remain the same
         sim_f = jaccard_similarity(person_data['factual_qids'], secret_person['factual_qids'])
         sim_r = jaccard_similarity(person_data['relational_qids'], secret_person['relational_qids'])
+
         final_score = (W_NARRATIVE * sim_n) + (W_FACTUAL * sim_f) + (W_RELATIONAL * sim_r)
         all_scores.append({
-            "qid": qid, 
-            "label": person_data["label"], 
-            "score": final_score, 
-            "sim_narrative": sim_n, 
-            "sim_factual": sim_f, 
+            "qid": qid,
+            "label": person_data["label"],
+            "score": final_score,
+            "sim_narrative": sim_n,
+            "sim_factual": sim_f,
             "sim_relational": sim_r
         })
-    
+
     sorted_ranking = sorted(all_scores, key=lambda x: x['score'], reverse=True)
     return [{
-        "qid": item["qid"], 
-        "label": item["label"], 
-        "rank": i + 1, 
-        "score": item["score"], 
-        "sim_narrative": item["sim_narrative"], 
-        "sim_factual": item["sim_factual"], 
+        "qid": item["qid"],
+        "label": item["label"],
+        "rank": i + 1,
+        "score": item["score"],
+        "sim_narrative": item["sim_narrative"],
+        "sim_factual": item["sim_factual"],
         "sim_relational": item["sim_relational"]
     } for i, item in enumerate(sorted_ranking)]
 
+def load_improved_embeddings():
+    """Load improved narrative embeddings if available."""
+    if not os.path.exists(NARRATIVE_EMBEDDINGS_DIR):
+        print("INFO: Improved embeddings directory not found. Using simple embeddings.")
+        return
+
+    try:
+        embedding_files = [f for f in os.listdir(NARRATIVE_EMBEDDINGS_DIR)
+                          if f.endswith('.json') and not f.startswith('_')]
+
+        for filename in embedding_files:
+            filepath = os.path.join(NARRATIVE_EMBEDDINGS_DIR, filename)
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                qid = data['qid']
+                IMPROVED_EMBEDDINGS_CACHE[qid] = data
+
+        print(f"INFO: Loaded {len(IMPROVED_EMBEDDINGS_CACHE)} improved narrative embeddings.")
+    except Exception as e:
+        print(f"WARNING: Could not load improved embeddings: {e}")
+
+
 def load_data_into_cache():
-    """Load data with enhanced relationship support"""
+    """Load data with enhanced relationship support and improved embeddings"""
     print("INFO: --- Starting Data Loading ---")
     if not os.path.exists(SQLITE_PATH):
         print(f"ERROR: SQLite database not found at {SQLITE_PATH}.")
         return
-    
+
     conn = sqlite3.connect(SQLITE_PATH)
     cursor = conn.cursor()
-    
+
     # Load persons
     cursor.execute("SELECT qid, label FROM persons")
     for qid, label in cursor.fetchall():
         PERSON_CACHE[qid] = {
-            "qid": qid, 
+            "qid": qid,
             "label": label, 
             "factual_qids": set(), 
             "relational_qids": set(), 
@@ -155,12 +217,19 @@ def load_data_into_cache():
             PERSON_CACHE[qid]['narrative_vector'] = chroma_data['embeddings'][i]
     
     print(f"INFO: --- Data Loading Complete. Loaded {len(PERSON_CACHE)} persons. ---")
-    
+
     # Statistics
     total_direct_rels = sum(len(p["direct_relationships"]) for p in PERSON_CACHE.values())
     total_shared = sum(len(p["shared_contexts"]) for p in PERSON_CACHE.values())
     print(f"INFO: Total direct relationships: {total_direct_rels}")
     print(f"INFO: Total shared contexts: {total_shared}")
+
+    # Load improved narrative embeddings if available
+    load_improved_embeddings()
+    if IMPROVED_EMBEDDINGS_CACHE:
+        print(f"INFO: Using improved multi-aspect narrative similarity for {len(IMPROVED_EMBEDDINGS_CACHE)} persons.")
+    else:
+        print("INFO: Using simple cosine similarity for narrative comparison.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
