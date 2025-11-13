@@ -23,6 +23,14 @@ except ImportError:
     IMPROVED_SIMILARITY_AVAILABLE = False
     print("Warning: improved_similarity module not found, using simple similarity")
 
+# Import game modes
+try:
+    from game_modes import GAME_MODES, filter_persons_by_mode, get_mode_statistics
+    GAME_MODES_AVAILABLE = True
+except ImportError:
+    GAME_MODES_AVAILABLE = False
+    print("Warning: game_modes module not found, using all persons mode only")
+
 DB_DIR = "data"
 SQLITE_PATH = os.path.join(DB_DIR, "persona.db")
 CHROMA_PATH = os.path.join(DB_DIR, "chroma")
@@ -261,8 +269,25 @@ class DailyRanking(Person):
     sim_factual: float
     sim_relational: float
 
+class GameMode(BaseModel):
+    id: str
+    name: str
+    name_th: str
+    description: str
+    description_th: str
+    icon: str
+    count: int
+
+class GameModesResponse(BaseModel):
+    modes: List[GameMode]
+
+class StartGameRequest(BaseModel):
+    mode: Optional[str] = 'all'  # Default to all persons
+
 class StartGameResponse(BaseModel):
     sessionId: str
+    mode: str
+    poolSize: int
 
 class MakeGuessRequest(BaseModel):
     sessionId: str
@@ -328,8 +353,49 @@ async def health_check():
     return {
         "status": "healthy",
         "persons_loaded": len(PERSON_CACHE),
-        "active_sessions": len(GAME_SESSIONS)
+        "active_sessions": len(GAME_SESSIONS),
+        "game_modes_available": GAME_MODES_AVAILABLE
     }
+
+@app.get("/game_modes", response_model=GameModesResponse)
+async def get_game_modes():
+    """Get available game modes with person counts."""
+    if not PERSON_CACHE:
+        raise HTTPException(status_code=503, detail="Data not loaded.")
+
+    if not GAME_MODES_AVAILABLE:
+        # Fallback to single "all" mode
+        return {
+            "modes": [{
+                "id": "all",
+                "name": "All Persons",
+                "name_th": "บุคคลทั้งหมด",
+                "description": "All famous Thai persons",
+                "description_th": "บุคคลชื่อดังทั้งหมด",
+                "icon": "🌟",
+                "count": len(PERSON_CACHE)
+            }]
+        }
+
+    # Get statistics for each mode
+    mode_stats = get_mode_statistics(PERSON_CACHE, IMPROVED_EMBEDDINGS_CACHE)
+
+    modes_list = []
+    for mode_id, stats in mode_stats.items():
+        modes_list.append({
+            "id": mode_id,
+            "name": stats["name"],
+            "name_th": stats["name_th"],
+            "description": stats["description"],
+            "description_th": stats["description_th"],
+            "icon": stats["icon"],
+            "count": stats["count"]
+        })
+
+    # Sort by count (descending) but keep 'all' first
+    modes_list.sort(key=lambda x: (x["id"] != "all", -x["count"]))
+
+    return {"modes": modes_list}
 
 @app.get("/persons", response_model=List[Person])
 async def get_all_persons():
@@ -352,22 +418,48 @@ async def get_daily_ranking(secret_qid: str):
     return calculate_ranking_for_secret(secret_qid)
 
 @app.post("/start_game", response_model=StartGameResponse)
-async def start_game():
+async def start_game(request: StartGameRequest = StartGameRequest()):
     if not PERSON_CACHE:
         raise HTTPException(status_code=503, detail="Data not loaded.")
-    
-    secret_qid = random.choice(list(PERSON_CACHE.keys()))
+
+    # Get game mode
+    mode = request.mode if request.mode else 'all'
+
+    # Filter person pool by game mode
+    if GAME_MODES_AVAILABLE and mode != 'all':
+        # Use game mode filtering
+        filtered_qids = filter_persons_by_mode(PERSON_CACHE, mode, IMPROVED_EMBEDDINGS_CACHE)
+
+        if not filtered_qids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No persons found for game mode '{mode}'. Try 'all' mode."
+            )
+
+        person_pool = filtered_qids
+    else:
+        # Use all persons
+        person_pool = list(PERSON_CACHE.keys())
+
+    # Select random secret person from the filtered pool
+    secret_qid = random.choice(person_pool)
     session_id = str(uuid.uuid4())
-    
+
     GAME_SESSIONS[session_id] = {
         "secret_qid": secret_qid,
         "guesses": [],
         "is_game_won": False,
         "is_resigned": False,
-        "ranking_calculated": False
+        "ranking_calculated": False,
+        "mode": mode,
+        "person_pool": person_pool  # Store the filtered pool for this session
     }
-    
-    return {"sessionId": session_id}
+
+    return {
+        "sessionId": session_id,
+        "mode": mode,
+        "poolSize": len(person_pool)
+    }
 
 @app.post("/make_guess", response_model=MakeGuessResponse)
 async def make_guess(request: MakeGuessRequest):
