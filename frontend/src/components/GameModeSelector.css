@@ -111,3 +111,21 @@
     font-size: 1.5em;
   }
 }
+
+.mode-warning {
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid #ffc107;
+  color: #ffc107;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 0.9em;
+}
+
+.no-modes {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: #888;
+}
